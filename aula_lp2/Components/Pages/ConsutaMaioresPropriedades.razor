@@ -1,0 +1,42 @@
+@page "/maiores-propriedades"
+@using aula_lp2.Models
+@using aula_lp2.Services
+@inject PropriedadeService PropriedadeService
+@rendermode InteractiveServer
+
+<h3>Maiores Propriedades por Pessoa</h3>
+
+<div class="container mt-4">
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>CPF</th>
+                    <th>Descrição da Propriedade</th>
+                    <th>Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var propriedade in propriedades)
+                {
+                    <tr>
+                        <td>@propriedade.Pessoa?.Nome</td>
+                        <td>@propriedade.Pessoa?.Cpf</td>
+                        <td>@propriedade.Descricao</td>
+                        <td>@propriedade.Valor?.ToString("C")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<Propriedade> propriedades = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        propriedades = await PropriedadeService.GetMaioresPropriedadesPorPessoa();
+    }
+}

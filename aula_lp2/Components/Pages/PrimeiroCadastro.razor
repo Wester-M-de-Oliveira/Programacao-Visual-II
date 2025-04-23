@@ -1,0 +1,153 @@
+@page "/primeiroCadastro"
+@using aula_lp2.Models
+@using aula_lp2.Services
+@rendermode InteractiveServer
+@inject PessoaService PessoaService
+@inject NavigationManager NavigationManager
+
+<h3>PRIMEIRO REGISTRO DE PESSOA COM PROPRIEDADES</h3>
+
+<div class="container">
+    <nav class="navbar navbar-light" style="background-color: darkgreen"></nav>
+
+    <div class="mb-3">
+        <label for="exampleFormControlInput1" class="form-label">NOME:</label>
+        <input class="form-control" id="exampleFormControlInput1" @bind="pessoa.Nome" disabled="@campoBloqueado">
+    </div>
+    <div class="row align-items-start">
+        <div class="col">
+            <div class="mb-3">
+                <label for="exampleFormControlInput1" class="form-label">CPF:</label>
+                <input type="text" class="form-control" id="exampleFormControlInput2" @bind="pessoa.Cpf" disabled="@campoBloqueado">
+            </div>
+        </div>
+        <div class="col">
+            <div class="mb-3">
+                <label for="exampleFormControlInput1" class="form-label">DATA DE NASCIMENTO:</label>
+                <input type="date" class="form-control" id="exampleFormControlInput2" @bind="pessoa.DataNasc" disabled="@campoBloqueado">
+            </div>
+        </div>
+        <div class="col">
+            <div class="mb-3">
+                <label for="exampleFormControlInput1" class="form-label">TELEFONE:</label>
+                <input type="tel" class="form-control" id="exampleFormControlInput2" @bind="pessoa.Telefone" disabled="@campoBloqueado">
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+    @if (novo == false)
+    {
+        <button type="button" class="btn btn-success" @onclick="Salvar">SALVAR</button>
+        <button type="button" class="btn btn-primary" @onclick="NovoRegistro">CANCELAR</button>
+        <button type="button" class="btn btn-success" @onclick="AddBens">Adicionar Bem</button>
+    }
+
+
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+
+    <nav class="navbar navbar-light" style="background-color: darkorange"></nav>
+
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+    @if (novo)
+    {
+        <div class="alert alert-success" role="alert">
+            Salvo com Sucesso;
+        </div>
+        <button type="button" class="btn btn-primary" @onclick="NovoRegistro">NOVO REGISTRO</button>
+    }
+
+    <div class="row align-items-start">
+        <div class="col">
+            <div class="mb-3">
+                <label for="descricaoInput" class="form-label">DESCRIÇÃO:</label>
+                <input type="text" class="form-control" id="descricaoInput" @bind="Descricao" disabled="@campoBloqueado">
+            </div>
+        </div>
+        <div class="col">
+            <div class="mb-3">
+                <label for="valorInput" class="form-label">VALOR:</label>
+                <input type="number" class="form-control" id="valorInput" @bind="Valor" disabled="@campoBloqueado">
+            </div>
+        </div>
+    </div>
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+    <nav class="navbar navbar-light" style="background-color: darkgreen"></nav>
+    <h4 style="text-align:center">Bens Cadastrados</h4>
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Descrição</th>
+            <th>Valor</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in bensRegistrados)
+        {
+            <tr>
+                <td>@item.Descricao</td>
+                <td>@item.Valor</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+
+</div>
+
+@code {
+    private string? Descricao { get; set; }
+    private double? Valor { get; set; }
+    private bool novo = false;
+    private bool campoBloqueado = false;
+    private Pessoa? pessoa = new Pessoa();
+    private List<Propriedade> bensRegistrados = new List<Propriedade>();
+    private string? mensagemErro;
+    
+    public void AddBens()
+    {
+        if (!string.IsNullOrEmpty(Descricao) && Valor.HasValue)
+        {
+            Propriedade bem = new Propriedade
+            {
+                Descricao = Descricao,
+                Valor = Valor.Value
+            };
+        
+            bensRegistrados.Add(bem);
+            Descricao = null;
+            Valor = null;
+        
+            StateHasChanged();
+        }
+    }
+    
+    public async Task Salvar()
+    {
+        if (string.IsNullOrEmpty(pessoa.Nome) || string.IsNullOrEmpty(pessoa.Cpf) || !pessoa.DataNasc.HasValue || string.IsNullOrEmpty(pessoa.Telefone))
+        {
+            mensagemErro = "Por favor, preencha todos os campos obrigatórios.";
+            return;
+        }
+        
+        // Se DataNasc tiver valor, converte para UTC
+        if (pessoa.DataNasc.HasValue)
+        {
+            pessoa.DataNasc = pessoa.DataNasc.Value.ToUniversalTime();
+        }
+        
+        pessoa.Propriedades = bensRegistrados;
+        await PessoaService.Add(pessoa);
+        await PessoaService.Salvar();
+        novo = true;
+        campoBloqueado = true;
+        mensagemErro = null;
+    }
+
+    public void NovoRegistro()
+    {
+        novo = false;
+        pessoa = new Pessoa();
+        NavigationManager.NavigateTo("/primeiroCadastro", forceLoad: true);
+    }
+}

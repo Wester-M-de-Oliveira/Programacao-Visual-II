@@ -1,0 +1,146 @@
+@page "/consulta"
+@using aula_lp2.Models
+@using aula_lp2.Services
+@rendermode InteractiveServer
+@inject PessoaService PessoaService
+@inject PropriedadeService PropriedadeService
+@inject NavigationManager NavigationManager
+
+<h3>Consulta de Pessoas</h3>
+
+<div class="container">
+    <nav class="navbar navbar-light" style="background-color: darkgreen"></nav>
+
+    <div class="form-group">
+        <label for="input-datalist">Buscar</label>
+        <input type="text" class="form-control" placeholder="Buscar" list="lista-pessoas" @onchange="SelecionarPessoas">
+        <datalist id="lista-pessoas">
+            @if (Pessoas != null)
+            {
+            @foreach (var item in Pessoas)
+            {
+            <option value="@item.Cpf">@item.Nome - @item.Cpf</option>
+            }
+            }
+        </datalist>
+    </div>
+
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+    <nav class="navbar navbar-light" style="background-color: darkgreen"></nav>
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+
+    <div class="mb-3">
+        <label for="nomeInput" class="form-label">NOME:</label>
+        <input type="text" class="form-control" id="nomeInput" disabled @bind-value="pessoa.Nome">
+    </div>
+
+    <div class="row align-items-start">
+        <div class="col">
+            <div class="mb-3">
+                <label for="cpfInput" class="form-label">CPF:</label>
+                <input type="text" class="form-control" id="cpfInput" disabled @bind-value="pessoa.Cpf">
+            </div>
+        </div>
+        <div class="col">
+            <div class="mb-3">
+                <label for="dataNascimentoInput" class="form-label">DATA DE NASCIMENTO:</label>
+                <input type="date" class="form-control" id="dataNascimentoInput" disabled @bind-value="pessoa.DataNasc">
+            </div>
+        </div>
+        <div class="col">
+            <div class="mb-3">
+                <label for="telefoneInput" class="form-label">TELEFONE:</label>
+                <input type="tel" class="form-control" id="telefoneInput" disabled @bind-value="pessoa.Telefone">
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+    <nav class="navbar navbar-light" style="background-color: darkorange"></nav>
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+
+    <h4 style="text-align:center">Bens Cadastrados</h4>
+    
+    @if (pessoa != null && pessoa.Cpf != null)
+    {
+        <div class="alert alert-info text-end">
+            <strong>Total de Bens:</strong> @CalcularTotalBens().ToString("C")
+        </div>
+    }
+    
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Descrição</th>
+            <th>Valor</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in bensRegistrados)
+        {
+        <tr>
+            <td>@item.Descricao</td>
+            @if (item != null && item.Valor != null)
+            {
+            <td>@item.Valor?.ToString("C")</td>
+            }
+            else
+            {
+            <td>N/A</td> <!-- Coloca "N/A" caso o valor seja nulo -->
+            }
+        </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private string? Descricao { get; set; }
+    private double? Valor { get; set; }
+    private bool novo = false;
+    private bool campoBloqueado = false;
+    private List<Pessoa> Pessoas { get; set; } = new List<Pessoa>();
+    private Pessoa? pessoa = new Pessoa();
+    private List<Propriedade> bensRegistrados = new List<Propriedade>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Pessoas = await PessoaService.Pessoas();
+        if (Pessoas == null) Pessoas = new List<Pessoa>(); 
+    }
+
+    public void SelecionarPessoas(ChangeEventArgs e)
+    {
+        if (Pessoas == null) return;
+
+        string cpf = e.Value?.ToString() ?? string.Empty;
+        pessoa = Pessoas.FirstOrDefault(p => p.Cpf == cpf);
+        if (pessoa != null)
+        {
+            campoBloqueado = true;
+            bensRegistrados = pessoa.Propriedades?.ToList() ?? new List<Propriedade>();
+        }
+        else
+        {
+            bensRegistrados.Clear();
+        }
+    }
+    
+    private double CalcularTotalBens()
+    {
+        double total = 0;
+        
+        if (bensRegistrados != null && bensRegistrados.Any())
+        {
+            foreach (var bem in bensRegistrados)
+            {
+                if (bem != null && bem.Valor.HasValue)
+                {
+                    total += bem.Valor.Value;
+                }
+            }
+        }
+        
+        return total;
+    }
+}

@@ -1,0 +1,75 @@
+is_global = true
+build_property.TargetFramework = net8.0
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.RootNamespace = aula_lp2
+build_property.RootNamespace = aula_lp2
+build_property.ProjectDir = /home/wester-dev/RiderProjects/aula_lp2/aula_lp2/
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.RazorLangVersion = 8.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = /home/wester-dev/RiderProjects/aula_lp2/aula_lp2
+build_property._RazorSourceGeneratorDebug = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/App.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BcHAucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/Pages/Consulta.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Db25zdWx0YS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/Pages/ConsultarBens.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Db25zdWx0YXJCZW5zLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/Pages/ConsutaMaioresPropriedades.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Db25zdXRhTWFpb3Jlc1Byb3ByaWVkYWRlcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/Pages/Counter.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Db3VudGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/Pages/Error.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9FcnJvci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/Pages/Home.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Ib21lLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/Pages/PrimeiroCadastro.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9QcmltZWlyb0NhZGFzdHJvLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/Pages/SegundoCadastro.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9TZWd1bmRvQ2FkYXN0cm8ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/Pages/Weather.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9XZWF0aGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/Routes.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9Sb3V0ZXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9fSW1wb3J0cy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/Layout/MainLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9MYXlvdXQvTWFpbkxheW91dC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-c9vrkp2ben
+
+[/home/wester-dev/RiderProjects/aula_lp2/aula_lp2/Components/Layout/NavMenu.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9MYXlvdXQvTmF2TWVudS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-oeytead3fr

@@ -1,0 +1,129 @@
+@page "/consulta-bens"
+@using aula_lp2.Models
+@using aula_lp2.Services
+@inject PessoaService PessoaService
+@rendermode InteractiveServer
+@inject PropriedadeService PropriedadeService
+
+<h3>Consulta de Bens</h3>
+
+<div class="form-group mb-3">
+    <label>Selecione a Pessoa:</label>
+    <select class="form-select" @onchange="PessoaSelecionada">
+        <option value="">Selecione...</option>
+        @foreach (var pessoa in pessoas)
+        {
+            <option value="@pessoa.Id">@pessoa.Nome</option>
+        }
+    </select>
+</div>
+
+<div class="row mb-3">
+    <div class="col">
+        <label>Valor Mínimo:</label>
+        <input type="number" class="form-control" @bind="valorMinimo" />
+    </div>
+    <div class="col">
+        <label>Descrição:</label>
+        <input type="text" class="form-control" @bind="descricao" />
+    </div>
+    <div class="col d-flex align-items-end">
+        <button class="btn btn-primary" @onclick="Filtrar">Filtrar</button>
+        <button class="btn btn-secondary ms-2" @onclick="LimparFiltros">Limpar Filtros</button>
+    </div>
+</div>
+
+@if (pessoaSelecionadaId.HasValue)
+{
+    <div class="alert alert-info">
+        <h4>Dados da Pessoa Selecionada:</h4>
+        @if (pessoaSelecionada != null)
+        {
+            <p>Nome: @pessoaSelecionada.Nome</p>
+            <p>CPF: @pessoaSelecionada.Cpf</p>
+            <p>Telefone: @pessoaSelecionada.Telefone</p>
+        }
+        <hr/>
+        <p><strong>Total de todos os bens:</strong> R$ @CalcularTotal(propriedades).ToString("N2")</p>
+        @if (propriedadesFiltradas.Any())
+        {
+            <p><strong>Total dos bens filtrados:</strong> R$ @CalcularTotal(propriedadesFiltradas).ToString("N2")</p>
+        }
+    </div>
+
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Descrição</th>
+            <th>Valor</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var prop in (propriedadesFiltradas.Any() ? propriedadesFiltradas : propriedades))
+        {
+            <tr>
+                <td>@prop.Descricao</td>
+                <td>@prop.Valor?.ToString("C")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Pessoa> pessoas = new();
+    private List<Propriedade> propriedades = new();
+    private List<Propriedade> propriedadesFiltradas = new();
+    private int? pessoaSelecionadaId;
+    private Pessoa? pessoaSelecionada;
+    private double? valorMinimo;
+    private string? descricao;
+
+    protected override async Task OnInitializedAsync()
+    {
+        pessoas = await PessoaService.Pessoas() ?? new();
+    }
+
+    private async Task PessoaSelecionada(ChangeEventArgs e)
+    {
+        propriedadesFiltradas.Clear();
+        valorMinimo = null;
+        descricao = null;
+        
+        if (int.TryParse(e.Value?.ToString(), out int id))
+        {
+            pessoaSelecionadaId = id;
+            pessoaSelecionada = await PessoaService.GetPessoa(id);
+            propriedades = await PropriedadeService.GetPropriedadesByPessoa(id);
+        }
+        else
+        {
+            pessoaSelecionadaId = null;
+            pessoaSelecionada = null;
+            propriedades.Clear();
+        }
+    }
+
+    private async Task Filtrar()
+    {
+        if (pessoaSelecionadaId.HasValue)
+        {
+            propriedadesFiltradas = await PropriedadeService.FiltrarPropriedades(
+                pessoaSelecionadaId,
+                valorMinimo,
+                descricao);
+        }
+    }
+
+    private void LimparFiltros()
+    {
+        valorMinimo = null;
+        descricao = null;
+        propriedadesFiltradas.Clear();
+    }
+
+    private double CalcularTotal(List<Propriedade> props)
+    {
+        return props.Where(p => p.Valor.HasValue).Sum(p => p.Valor.Value);
+    }
+}
