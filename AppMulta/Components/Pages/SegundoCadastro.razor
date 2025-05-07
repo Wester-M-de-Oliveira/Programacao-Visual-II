@@ -1,0 +1,141 @@
+@page "/segundo-cadastro"
+@using AppMulta.Models
+@using AppMulta.Services
+@inject VeiculoService veiculoService;
+@inject MultaService multaService;
+@inject NavigationManager NavigationManager;
+@rendermode InteractiveServer
+
+<h3>REGISTRO DE MULTAS DE VEÍCULOS</h3>
+<div class="container">
+    <nav class="navbar navbar-light" style="background-color: darkgreen"></nav>
+    <div class="form-group">
+        <label for="input-datalist">Buscar Veículo</label>
+        <input type="text" class="form-control" placeholder="Buscar por placa" list="lista-veiculos" @onchange="SelecionarVeiculo">
+        <datalist id="lista-veiculos">
+            @foreach (var item in Veiculos)
+            {
+                <option value="@item.Placa">@item.Marca @item.Modelo</option>
+            }
+        </datalist>
+    </div>
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+    <div class="mb-3">
+        <label for="exampleFormControlInput1" class="form-label">MODELO:</label>
+        <input type="text" class="form-control" id="exampleFormControlInput1" value="@veiculo?.Modelo" disabled="true">
+    </div>
+    <div class="row align-items-start">
+        <div class="col">
+            <div class="mb-3">
+                <label for="exampleFormControlInput1" class="form-label">MARCA:</label>
+                <input type="text" class="form-control" id="exampleFormControlInput2" value="@veiculo?.Marca" disabled="true">
+            </div>
+        </div>
+        <div class="col">
+            <div class="mb-3">
+                <label for="exampleFormControlInput1" class="form-label">PLACA:</label>
+                <input type="text" class="form-control" id="exampleFormControlInput2" value="@veiculo?.Placa" disabled="true">
+            </div>
+        </div>
+    </div>
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+    @if (!novo)
+    {
+        <button type="button" class="btn btn-success" @onclick="Salvar">SALVAR</button>
+        <button type="button" class="btn btn-primary" @onclick="NovoRegistro">CANCELAR</button>
+        <button type="button" class="btn btn-warning" @onclick="AddMulta">ADD MULTA</button>
+    }
+
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+
+    @if (novo)
+    {
+        <div class="alert alert-success" role="alert">
+            Multas registradas com sucesso!
+        </div>
+        <button type="button" class="btn btn-primary" @onclick="NovoRegistro">NOVO REGISTRO</button>
+    }
+
+    <div class="row align-items-start">
+        <div class="col">
+            <div class="mb-3">
+                <label for="exampleFormControlInput1" class="form-label">DESCRIÇÃO DA INFRAÇÃO:</label>
+                <input type="text" class="form-control" id="exampleFormControlInput1" @bind="Descricao" disabled="@campoBloqueado">
+            </div>
+        </div>
+        <div class="col">
+            <div class="mb-3">
+                <label for="exampleFormControlInput1" class="form-label">VALOR DA MULTA:</label>
+                <input type="number" class="form-control" id="exampleFormControlInput1" @bind="Valor" disabled="@campoBloqueado">
+            </div>
+        </div>
+    </div>
+    <h4 style="text-align:center">Multas Registradas</h4>
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Descrição</th>
+            <th>Valor</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in multasRegistradas)
+        {
+            <tr>
+                <td>@item.Descricao</td>
+                <td>@item.ValorMulta</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private string? Descricao { get; set; }
+    private decimal? Valor { get; set; }
+    private bool novo = false;
+    private bool campoBloqueado = false;
+    private List<Veiculo> Veiculos { get; set; } = new List<Veiculo>();
+    private Veiculo? veiculo = new Veiculo();
+    private List<Multa> multasRegistradas = new List<Multa>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Veiculos = new List<Veiculo>();
+        var lista = await veiculoService.Veiculos();
+        Veiculos = lista.ToList();
+    }
+
+    public void SelecionarVeiculo(ChangeEventArgs e)
+    {
+        string placa = e.Value?.ToString() ?? string.Empty;
+        veiculo = Veiculos.FirstOrDefault(v => v.Placa == placa);
+        campoBloqueado = false;
+    }
+
+    private void AddMulta()
+    {
+        Multa multa = new Multa();
+        multa.Descricao = Descricao;
+        multa.ValorMulta = Valor;
+        multa.Veiculo = veiculo;
+        multa.IdVeiculo = veiculo?.Id;
+        multasRegistradas.Add(multa);
+        Descricao = null;
+        Valor = null;
+    }
+
+    private async Task Salvar()
+    {
+        await multaService.Add(multasRegistradas);
+        await multaService.Salvar();
+        novo = true;
+        campoBloqueado = true;
+    }
+
+    public void NovoRegistro()
+    {
+        novo = false;
+        NavigationManager.NavigateTo("/segundocadastro", forceLoad: true);
+    }
+}

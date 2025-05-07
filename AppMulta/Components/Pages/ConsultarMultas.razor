@@ -1,0 +1,129 @@
+@page "/consultar-multas"
+@using AppMulta.Models
+@using AppMulta.Services
+@inject VeiculoService VeiculoService
+@rendermode InteractiveServer
+@inject MultaService MultaService
+
+<h3>Consulta de Multas</h3>
+
+<div class="form-group mb-3">
+    <label>Selecione o Veículo:</label>
+    <select class="form-select" @onchange="VeiculoSelecionado">
+        <option value="">Selecione...</option>
+        @foreach (var veiculo in veiculos)
+        {
+            <option value="@veiculo.Id">@veiculo.Marca @veiculo.Modelo - @veiculo.Placa</option>
+        }
+    </select>
+</div>
+
+<div class="row mb-3">
+    <div class="col">
+        <label>Valor Mínimo:</label>
+        <input type="number" class="form-control" @bind="valorMinimo" />
+    </div>
+    <div class="col">
+        <label>Descrição:</label>
+        <input type="text" class="form-control" @bind="descricao" />
+    </div>
+    <div class="col d-flex align-items-end">
+        <button class="btn btn-primary" @onclick="Filtrar">Filtrar</button>
+        <button class="btn btn-secondary ms-2" @onclick="LimparFiltros">Limpar Filtros</button>
+    </div>
+</div>
+
+@if (veiculoSelecionadoId.HasValue)
+{
+    <div class="alert alert-info">
+        <h4>Dados do Veículo Selecionado:</h4>
+        @if (veiculoSelecionado != null)
+        {
+            <p>Marca: @veiculoSelecionado.Marca</p>
+            <p>Modelo: @veiculoSelecionado.Modelo</p>
+            <p>Placa: @veiculoSelecionado.Placa</p>
+        }
+        <hr/>
+        <p><strong>Total de todas as multas:</strong> R$ @CalcularTotal(multas).ToString("N2")</p>
+        @if (multasFiltradas.Any())
+        {
+            <p><strong>Total das multas filtradas:</strong> R$ @CalcularTotal(multasFiltradas).ToString("N2")</p>
+        }
+    </div>
+
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Descrição</th>
+            <th>Valor</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var multa in (multasFiltradas.Any() ? multasFiltradas : multas))
+        {
+            <tr>
+                <td>@multa.Descricao</td>
+                <td>@multa.ValorMulta?.ToString("C")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Veiculo> veiculos = new();
+    private List<Multa> multas = new();
+    private List<Multa> multasFiltradas = new();
+    private int? veiculoSelecionadoId;
+    private Veiculo? veiculoSelecionado;
+    private decimal? valorMinimo;
+    private string? descricao;
+
+    protected override async Task OnInitializedAsync()
+    {
+        veiculos = await VeiculoService.Veiculos() ?? new();
+    }
+
+    private async Task VeiculoSelecionado(ChangeEventArgs e)
+    {
+        multasFiltradas.Clear();
+        valorMinimo = null;
+        descricao = null;
+        
+        if (int.TryParse(e.Value?.ToString(), out int id))
+        {
+            veiculoSelecionadoId = id;
+            veiculoSelecionado = await VeiculoService.GetVeiculo(id);
+            multas = await MultaService.GetMultasByVeiculo(id);
+        }
+        else
+        {
+            veiculoSelecionadoId = null;
+            veiculoSelecionado = null;
+            multas.Clear();
+        }
+    }
+
+    private async Task Filtrar()
+    {
+        if (veiculoSelecionadoId.HasValue)
+        {
+            multasFiltradas = await MultaService.FiltrarMultas(
+                veiculoSelecionadoId,
+                valorMinimo,
+                descricao);
+        }
+    }
+
+    private void LimparFiltros()
+    {
+        valorMinimo = null;
+        descricao = null;
+        multasFiltradas.Clear();
+    }
+
+    private decimal CalcularTotal(List<Multa> multasList)
+    {
+        return multasList.Where(m => m.ValorMulta.HasValue).Sum(m => m.ValorMulta.Value);
+    }
+}

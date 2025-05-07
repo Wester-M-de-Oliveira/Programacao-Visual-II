@@ -1,0 +1,143 @@
+@page "/primeiro-cadastro"
+@using AppMulta.Models
+@using AppMulta.Services
+@rendermode InteractiveServer
+@inject VeiculoService VeiculoService
+@inject NavigationManager NavigationManager
+
+<h3>PRIMEIRO REGISTRO DE MULTA DO VEICULO</h3>
+
+<div class="container">
+    <nav class="navbar navbar-light" style="background-color: darkgreen"></nav>
+
+    <div class="mb-3">
+        <label for="exampleFormControlInput1" class="form-label">MODELO:</label>
+        <input class="form-control" id="exampleFormControlInput1" @bind="veiculo.Modelo" disabled="@campoBloqueado">
+    </div>
+    <div class="row align-items-start">
+        <div class="col">
+            <div class="mb-3">
+                <label for="exampleFormControlInput1" class="form-label">MARCA:</label>
+                <input type="text" class="form-control" id="exampleFormControlInput2" @bind="veiculo.Marca" disabled="@campoBloqueado">
+            </div>
+        </div>
+        <div class="col">
+            <div class="mb-3">
+                <label for="exampleFormControlInput1" class="form-label">PLACA:</label>
+                <input type="text" class="form-control" id="exampleFormControlInput2" @bind="veiculo.Placa" disabled="@campoBloqueado">
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+    @if (novo == false)
+    {
+        <button type="button" class="btn btn-success" @onclick="Salvar">SALVAR</button>
+        <button type="button" class="btn btn-primary" @onclick="NovoRegistro">CANCELAR</button>
+        <button type="button" class="btn btn-success" @onclick="AddMulta">Adicionar Multa</button>
+    }
+
+
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+
+    <nav class="navbar navbar-light" style="background-color: darkorange"></nav>
+
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+    @if (novo)
+    {
+        <div class="alert alert-success" role="alert">
+            Salvo com Sucesso;
+        </div>
+        <button type="button" class="btn btn-primary" @onclick="NovoRegistro">NOVO REGISTRO</button>
+    }
+
+    <div class="row align-items-start">
+        <div class="col">
+            <div class="mb-3">
+                <label for="descricaoInput" class="form-label">DESCRIÇÃO DA MULTA:</label>
+                <input type="text" class="form-control" id="descricaoInput" @bind="Descricao" disabled="@campoBloqueado">
+            </div>
+        </div>
+        <div class="col">
+            <div class="mb-3">
+                <label for="valorInput" class="form-label">VALOR DA MULTA:</label>
+                <input type="number" class="form-control" id="valorInput" @bind="ValorMulta" disabled="@campoBloqueado">
+            </div>
+        </div>
+    </div>
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+    <nav class="navbar navbar-light" style="background-color: darkgreen"></nav>
+    <h4 style="text-align:center">Multas Cadastradas</h4>
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Descrição</th>
+            <th>Valor da Multa</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in multasRegistradas)
+        {
+            <tr>
+                <td>@item.Descricao</td>
+                <td>@item.ValorMulta</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+
+</div>
+
+@code {
+    private List<Multa> multasRegistradas = new List<Multa>();
+    private Veiculo veiculo = new Veiculo();
+    private bool campoBloqueado = false;
+    private bool novo = false;
+    private string? mensagemErro;
+
+    private string? Descricao { get; set; }
+    private decimal? ValorMulta { get; set; }
+    
+    public void AddMulta()
+    {
+        if (!string.IsNullOrEmpty(Descricao) && ValorMulta.HasValue)
+        {
+            Multa multa = new Multa
+            {
+                Descricao = Descricao,
+                ValorMulta = ValorMulta.Value
+            };
+        
+            multasRegistradas.Add(multa);
+            Descricao = null;
+            ValorMulta = null;
+        
+            StateHasChanged();
+        }
+    }
+    
+    public async Task Salvar()
+    {
+        if (string.IsNullOrEmpty(veiculo.Modelo) || string.IsNullOrEmpty(veiculo.Marca) || string.IsNullOrEmpty(veiculo.Placa))
+        {
+            mensagemErro = "Por favor, preencha todos os campos obrigatórios.";
+            return;
+        }
+        
+        veiculo.Multas = multasRegistradas;
+        await VeiculoService.Add(veiculo);
+        await VeiculoService.Salvar();
+        novo = true;
+        campoBloqueado = true;
+        mensagemErro = null;
+    }
+
+    public void NovoRegistro()
+    {
+        novo = false;
+        veiculo = new Veiculo();
+        multasRegistradas = new List<Multa>();
+        NavigationManager.NavigateTo("/primeiroCadastro", forceLoad: true);
+    }
+}

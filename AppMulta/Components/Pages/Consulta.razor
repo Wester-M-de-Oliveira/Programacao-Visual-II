@@ -1,0 +1,141 @@
+@page "/consulta"
+@using AppMulta.Models
+@using AppMulta.Services
+@rendermode InteractiveServer
+@inject VeiculoService VeiculoService
+@inject MultaService MultaService
+@inject NavigationManager NavigationManager
+
+<h3>Consulta de Veículos</h3>
+
+<div class="container">
+    <nav class="navbar navbar-light" style="background-color: darkgreen"></nav>
+
+    <div class="form-group">
+        <label for="input-datalist">Buscar Veículo</label>
+        <input type="text" class="form-control" placeholder="Buscar por placa" list="lista-veiculos" @onchange="SelecionarVeiculo">
+        <datalist id="lista-veiculos">
+            @if (Veiculos != null)
+            {
+            @foreach (var item in Veiculos)
+            {
+            <option value="@item.Placa">@item.Marca @item.Modelo - @item.Placa</option>
+            }
+            }
+        </datalist>
+    </div>
+
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+    <nav class="navbar navbar-light" style="background-color: darkgreen"></nav>
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+
+    <div class="mb-3">
+        <label for="modeloInput" class="form-label">MODELO:</label>
+        <input type="text" class="form-control" id="modeloInput" disabled @bind-value="veiculo.Modelo">
+    </div>
+
+    <div class="row align-items-start">
+        <div class="col">
+            <div class="mb-3">
+                <label for="marcaInput" class="form-label">MARCA:</label>
+                <input type="text" class="form-control" id="marcaInput" disabled @bind-value="veiculo.Marca">
+            </div>
+        </div>
+        <div class="col">
+            <div class="mb-3">
+                <label for="placaInput" class="form-label">PLACA:</label>
+                <input type="text" class="form-control" id="placaInput" disabled @bind-value="veiculo.Placa">
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+    <nav class="navbar navbar-light" style="background-color: darkorange"></nav>
+    <nav class="navbar navbar-light" style="background-color: white"></nav>
+
+    <h4 style="text-align:center">Multas Registradas</h4>
+    
+    @if (veiculo != null && veiculo.Placa != null)
+    {
+        <div class="alert alert-info text-end">
+            <strong>Total de Multas:</strong> @CalcularTotalMultas().ToString("C")
+        </div>
+    }
+    
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Descrição</th>
+            <th>Valor</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in multasRegistradas)
+        {
+        <tr>
+            <td>@item.Descricao</td>
+            @if (item != null && item.ValorMulta != null)
+            {
+            <td>@item.ValorMulta?.ToString("C")</td>
+            }
+            else
+            {
+            <td>N/A</td> <!-- Coloca "N/A" caso o valor seja nulo -->
+            }
+        </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private string? Descricao { get; set; }
+    private decimal? Valor { get; set; }
+    private bool novo = false;
+    private bool campoBloqueado = false;
+    private List<Veiculo> Veiculos { get; set; } = new List<Veiculo>();
+    private Veiculo veiculo = new Veiculo();
+    private List<Multa> multasRegistradas = new List<Multa>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Veiculos = await VeiculoService.Veiculos() ?? new List<Veiculo>();
+    }
+
+    public async Task SelecionarVeiculo(ChangeEventArgs e)
+    {
+        if (Veiculos == null) return;
+
+        string placa = e.Value?.ToString() ?? string.Empty;
+        veiculo = Veiculos.FirstOrDefault(v => v.Placa == placa) ?? new Veiculo();
+        
+        if (veiculo != null && veiculo.Id != 0)
+        {
+            campoBloqueado = true;
+            // Carregar multas do veículo selecionado
+            multasRegistradas = await MultaService.GetMultasByVeiculo(veiculo.Id);
+        }
+        else
+        {
+            multasRegistradas.Clear();
+        }
+    }
+    
+    private decimal CalcularTotalMultas()
+    {
+        decimal total = 0;
+        
+        if (multasRegistradas != null && multasRegistradas.Any())
+        {
+            foreach (var multa in multasRegistradas)
+            {
+                if (multa != null && multa.ValorMulta.HasValue)
+                {
+                    total += multa.ValorMulta.Value;
+                }
+            }
+        }
+        
+        return total;
+    }
+}

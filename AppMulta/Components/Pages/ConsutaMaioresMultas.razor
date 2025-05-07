@@ -1,0 +1,44 @@
+@page "/maiores-multas"
+@using AppMulta.Models
+@using AppMulta.Services
+@inject MultaService MultaService
+@rendermode InteractiveServer
+
+<h3>Maiores Multas por Veículo</h3>
+
+<div class="container mt-4">
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Placa</th>
+                    <th>Modelo</th>
+                    <th>Marca</th>
+                    <th>Descrição da Multa</th>
+                    <th>Valor da Multa</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var multa in multas)
+                {
+                    <tr>
+                        <td>@multa.Veiculo?.Placa</td>
+                        <td>@multa.Veiculo?.Modelo</td>
+                        <td>@multa.Veiculo?.Marca</td>
+                        <td>@multa.Descricao</td>
+                        <td>@multa.ValorMulta?.ToString("C")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<Multa> multas = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        multas = await MultaService.GetMaioresMultasPorVeiculo();
+    }
+}
