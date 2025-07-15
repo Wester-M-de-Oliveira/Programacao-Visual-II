@@ -1,0 +1,251 @@
+@rendermode InteractiveServer
+
+@page "/admin/categorias"
+@attribute [Authorize(Roles = "admin")]
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using global::GestaoFreela.Data
+@using global::GestaoFreela.Models
+
+@inject ApplicationDbContext DbContext
+@inject ILogger<Categorias> Logger
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-tags text-primary me-2"></i>
+                    Gerenciar Categorias
+                </h2>
+                <button class="btn btn-primary" @onclick="AbrirModalCadastro">
+                    <i class="fas fa-plus me-2"></i>
+                    Nova Categoria
+                </button>
+            </div>
+
+            <!-- Lista de Categorias -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Categorias Cadastradas</h5>
+                </div>
+                <div class="card-body">
+                    @if (categorias == null)
+                    {
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (!categorias.Any())
+                    {
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Nenhuma categoria cadastrada ainda.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Descrição</th>
+                                        <th class="text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var categoria in categorias)
+                                    {
+                                        <tr>
+                                            <td>@categoria.Nome</td>
+                                            <td>@categoria.Descricao</td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => EditarCategoria(categoria)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ExcluirCategoria(categoria.Id)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Cadastro/Edição -->
+@if (mostrarModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(categoriaEditando?.Id > 0 ? "Editar Categoria" : "Nova Categoria")</h5>
+                    <button type="button" class="btn-close" @onclick="FecharModal"></button>
+                </div>
+                <form @onsubmit="SalvarCategoria" @onsubmit:preventDefault="true">
+                    <div class="modal-body">
+                        @if (!string.IsNullOrEmpty(mensagemErro))
+                        {
+                            <div class="alert alert-danger">@mensagemErro</div>
+                        }
+                        
+                        <div class="mb-3">
+                            <label for="nome" class="form-label">Nome da Categoria</label>
+                            <input @bind="Input.Nome" class="form-control" placeholder="Digite o nome da categoria" required />
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="descricao" class="form-label">Descrição</label>
+                            <textarea @bind="Input.Descricao" class="form-control" rows="3" placeholder="Digite a descrição da categoria" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="FecharModal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            @(categoriaEditando?.Id > 0 ? "Atualizar" : "Cadastrar")
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private List<Categoria>? categorias;
+    private bool mostrarModal = false;
+    private Categoria? categoriaEditando;
+    private string mensagemErro = "";
+
+    private InputModel Input { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarCategorias();
+    }
+
+    private async Task CarregarCategorias()
+    {
+        categorias = await DbContext.Categorias.ToListAsync();
+    }
+
+    private void AbrirModalCadastro()
+    {
+        categoriaEditando = null;
+        Input = new InputModel();
+        mensagemErro = "";
+        mostrarModal = true;
+    }
+
+    private void EditarCategoria(Categoria categoria)
+    {
+        categoriaEditando = categoria;
+        Input = new InputModel
+        {
+            Nome = categoria.Nome,
+            Descricao = categoria.Descricao
+        };
+        mensagemErro = "";
+        mostrarModal = true;
+    }
+
+    private void FecharModal()
+    {
+        mostrarModal = false;
+        categoriaEditando = null;
+        Input = new InputModel();
+        mensagemErro = "";
+    }
+
+    private async Task SalvarCategoria()
+    {
+        mensagemErro = "";
+
+        // Validação simples
+        if (string.IsNullOrWhiteSpace(Input.Nome))
+        {
+            mensagemErro = "O nome da categoria é obrigatório.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Input.Descricao))
+        {
+            mensagemErro = "A descrição é obrigatória.";
+            return;
+        }
+
+        try
+        {
+            if (categoriaEditando?.Id > 0)
+            {
+                // Editar categoria existente
+                categoriaEditando.Nome = Input.Nome;
+                categoriaEditando.Descricao = Input.Descricao;
+                DbContext.Categorias.Update(categoriaEditando);
+            }
+            else
+            {
+                // Criar nova categoria
+                var novaCategoria = new Categoria
+                {
+                    Nome = Input.Nome,
+                    Descricao = Input.Descricao
+                };
+                DbContext.Categorias.Add(novaCategoria);
+            }
+
+            await DbContext.SaveChangesAsync();
+            await CarregarCategorias();
+            FecharModal();
+
+            Logger.LogInformation("Categoria {Nome} foi {Acao} com sucesso.", 
+                Input.Nome, 
+                categoriaEditando?.Id > 0 ? "atualizada" : "criada");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao salvar categoria");
+            mensagemErro = "Erro ao salvar categoria. Tente novamente.";
+        }
+    }
+
+    private async Task ExcluirCategoria(int categoriaId)
+    {
+        try
+        {
+            var categoria = await DbContext.Categorias.FindAsync(categoriaId);
+            if (categoria != null)
+            {
+                DbContext.Categorias.Remove(categoria);
+                await DbContext.SaveChangesAsync();
+                await CarregarCategorias();
+
+                Logger.LogInformation("Categoria {Nome} foi excluída com sucesso.", categoria.Nome);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao excluir categoria {CategoriaId}", categoriaId);
+            mensagemErro = "Erro ao excluir categoria. Pode haver serviços vinculados a ela.";
+        }
+    }
+
+    private sealed class InputModel
+    {
+        public string Nome { get; set; } = "";
+        public string Descricao { get; set; } = "";
+    }
+}

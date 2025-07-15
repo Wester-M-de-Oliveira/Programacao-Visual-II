@@ -1,0 +1,276 @@
+﻿@rendermode InteractiveServer
+
+@page "/Account/Register"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Forms
+@using GestaoFreela.Data
+@using GestaoFreela.Models.Constants
+
+@inject UserManager<ApplicationUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+@inject IUserStore<ApplicationUser> UserStore
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ILogger<Register> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Cadastro</PageTitle>
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header bg-primary text-white text-center py-4">
+                    <h3 class="font-weight-light mb-0">
+                        <i class="fas fa-user-plus me-2"></i>
+                        Criar Nova Conta
+                    </h3>
+                    <p class="mb-0">Junte-se à nossa plataforma de freelancers</p>
+                </div>
+                <div class="card-body">
+                    <StatusMessage Message="@ErrorMessage"/>
+                    
+                    <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
+                        <DataAnnotationsValidator/>
+                        <ValidationSummary class="text-danger mb-3" role="alert"/>
+                        
+                        <!-- Seleção do Tipo de Usuário -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-muted mb-3">Você é:</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="TipoUsuario" id="cliente" value="cliente" checked="@(Input.TipoUsuario == "cliente")" @onchange="SelecionarCliente">
+                                            <label class="form-check-label card p-3" for="cliente" style="cursor: pointer; width: 100%;">
+                                                <div class="text-center">
+                                                    <i class="fas fa-briefcase fa-3x text-primary mb-3"></i>
+                                                    <h6 class="card-title">Cliente</h6>
+                                                    <p class="card-text small">Preciso contratar freelancers para meus projetos</p>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="TipoUsuario" id="freelancer" value="freelancer" checked="@(Input.TipoUsuario == "freelancer")" @onchange="SelecionarFreelancer">
+                                            <label class="form-check-label card p-3" for="freelancer" style="cursor: pointer; width: 100%;">
+                                                <div class="text-center">
+                                                    <i class="fas fa-code fa-3x text-success mb-3"></i>
+                                                    <h6 class="card-title">Freelancer</h6>
+                                                    <p class="card-text small">Quero trabalhar em projetos como freelancer</p>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <ValidationMessage For="() => Input.TipoUsuario" class="text-danger"/>
+                            </div>
+                        </div>
+
+                        <!-- Dados Pessoais -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText @bind-Value="Input.Nome" class="form-control" placeholder="Seu nome completo" />
+                                    <label for="nome">Nome Completo</label>
+                                    <ValidationMessage For="() => Input.Nome" class="text-danger"/>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText @bind-Value="Input.Email" class="form-control" autocomplete="username" placeholder="seu@email.com"/>
+                                    <label for="email">E-mail</label>
+                                    <ValidationMessage For="() => Input.Email" class="text-danger"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText @bind-Value="Input.CpfCnpj" class="form-control" placeholder="000.000.000-00 ou 00.000.000/0000-00" />
+                                    <label for="cpfcnpj">CPF/CNPJ</label>
+                                    <ValidationMessage For="() => Input.CpfCnpj" class="text-danger"/>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText @bind-Value="Input.Telefone" class="form-control" placeholder="(00) 00000-0000" />
+                                    <label for="telefone">Telefone</label>
+                                    <ValidationMessage For="() => Input.Telefone" class="text-danger"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Senha -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText type="password" @bind-Value="Input.Password" class="form-control" autocomplete="new-password" placeholder="Senha"/>
+                                    <label for="password">Senha</label>
+                                    <ValidationMessage For="() => Input.Password" class="text-danger"/>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <InputText type="password" @bind-Value="Input.ConfirmPassword" class="form-control" autocomplete="new-password" placeholder="Confirmar senha"/>
+                                    <label for="confirm-password">Confirmar Senha</label>
+                                    <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>
+                                Criar Conta
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+                <div class="card-footer text-center py-3">
+                    <div class="small">
+                        <span class="text-muted">Já possui uma conta?</span>
+                        <a href="Account/Login">Fazer Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<IdentityError>? identityErrors;
+
+    [SupplyParameterFromForm] private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery] private string? ReturnUrl { get; set; }
+
+    private string? ErrorMessage => identityErrors is null ? null : $"Erro: {string.Join(", ", identityErrors.Select(error => TranslateError(error.Description)))}";
+
+    private void SelecionarCliente(ChangeEventArgs e)
+    {
+        Input.TipoUsuario = "cliente";
+    }
+
+    private void SelecionarFreelancer(ChangeEventArgs e)
+    {
+        Input.TipoUsuario = "freelancer";
+    }
+
+    public async Task RegisterUser(EditContext editContext)
+    {
+        var user = CreateUser();
+
+        // Configurar os dados do usuário
+        user.Nome = Input.Nome;
+        user.CpfCnpj = Input.CpfCnpj;
+        user.Telefone = Input.Telefone;
+
+        await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
+        var emailStore = GetEmailStore();
+        await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+        
+        var result = await UserManager.CreateAsync(user, Input.Password);
+
+        if (!result.Succeeded)
+        {
+            identityErrors = result.Errors;
+            return;
+        }
+
+        // Confirmar email automaticamente
+        var emailConfirmationToken = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        await UserManager.ConfirmEmailAsync(user, emailConfirmationToken);
+
+        // Atribuir role ao usuário
+        if (!string.IsNullOrEmpty(Input.TipoUsuario))
+        {
+            await UserManager.AddToRoleAsync(user, Input.TipoUsuario);
+        }
+
+        Logger.LogInformation("Usuário criou uma nova conta com senha e email confirmado automaticamente.");
+
+        // Redirecionar para a página de login após o registro bem-sucedido
+        NavigationManager.NavigateTo($"Account/Login?message=Conta criada com sucesso! Faça login para continuar.&returnUrl={ReturnUrl}");
+    }
+
+    private ApplicationUser CreateUser()
+    {
+        try
+        {
+            return Activator.CreateInstance<ApplicationUser>();
+        }
+        catch
+        {
+            throw new InvalidOperationException($"Não é possível criar uma instância de '{nameof(ApplicationUser)}'. " +
+                                                $"Certifique-se de que '{nameof(ApplicationUser)}' não é uma classe abstrata e possui um construtor sem parâmetros.");
+        }
+    }
+
+    private IUserEmailStore<ApplicationUser> GetEmailStore()
+    {
+        if (!UserManager.SupportsUserEmail)
+        {
+            throw new NotSupportedException("A interface padrão requer um armazenamento de usuário com suporte a email.");
+        }
+
+        return (IUserEmailStore<ApplicationUser>)UserStore;
+    }
+
+    private string TranslateError(string error)
+    {
+        return error switch
+        {
+            "Passwords must have at least one non alphanumeric character." => "A senha deve conter pelo menos um caractere especial.",
+            "Passwords must have at least one lowercase ('a'-'z')." => "A senha deve conter pelo menos uma letra minúscula.",
+            "Passwords must have at least one uppercase ('A'-'Z')." => "A senha deve conter pelo menos uma letra maiúscula.",
+            "Passwords must have at least one digit ('0'-'9')." => "A senha deve conter pelo menos um número.",
+            "Passwords must be at least 6 characters." => "A senha deve ter pelo menos 6 caracteres.",
+            "User name already taken." => "Este nome de usuário já está em uso.",
+            "Email already taken." => "Este e-mail já está cadastrado.",
+            _ => error
+        };
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "O tipo de usuário é obrigatório")]
+        [Display(Name = "Tipo de Usuário")]
+        public string TipoUsuario { get; set; } = "";
+
+        [Required(ErrorMessage = "O nome é obrigatório")]
+        [StringLength(100, ErrorMessage = "O nome deve ter no máximo 100 caracteres")]
+        [Display(Name = "Nome Completo")]
+        public string Nome { get; set; } = "";
+
+        [Required(ErrorMessage = "O e-mail é obrigatório")]
+        [EmailAddress(ErrorMessage = "E-mail inválido")]
+        [Display(Name = "E-mail")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "CPF/CNPJ é obrigatório")]
+        [StringLength(18, ErrorMessage = "CPF/CNPJ deve ter no máximo 18 caracteres")]
+        [Display(Name = "CPF/CNPJ")]
+        public string CpfCnpj { get; set; } = "";
+
+        [Required(ErrorMessage = "O telefone é obrigatório")]
+        [StringLength(20, ErrorMessage = "O telefone deve ter no máximo 20 caracteres")]
+        [Display(Name = "Telefone")]
+        public string Telefone { get; set; } = "";
+
+        [Required(ErrorMessage = "A senha é obrigatória")]
+        [StringLength(100, ErrorMessage = "A senha deve ter entre {2} e {1} caracteres.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Senha")]
+        public string Password { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirmar Senha")]
+        [Compare("Password", ErrorMessage = "A senha e a confirmação não coincidem.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

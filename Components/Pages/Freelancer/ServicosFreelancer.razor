@@ -1,0 +1,379 @@
+
+@page "/freelancer/servicos"
+@rendermode InteractiveServer
+
+@attribute [Authorize(Roles = "freelancer")]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using global::GestaoFreela.Data
+@using global::GestaoFreela.Models
+@using global::GestaoFreela.Models.Enums
+@using Microsoft.AspNetCore.Identity
+
+@inject ApplicationDbContext DbContext
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<ServicosFreelancer> Logger
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-search text-primary me-2"></i>
+                    Serviços Disponíveis
+                </h2>
+                <div class="d-flex gap-2">
+                    <select @onchange="OnCategoriaChanged" class="form-select" style="width: auto;">
+                        <option value="">Todas as Categorias</option>
+                        @if (categorias != null)
+                        {
+                            @foreach (var categoria in categorias)
+                            {
+                                <option value="@categoria.Id">@categoria.Nome</option>
+                            }
+                        }
+                    </select>
+                    <select @onchange="OnNivelChanged" class="form-select" style="width: auto;">
+                        <option value="">Todos os Níveis</option>
+                        <option value="@((int)NivelServico.Junior)">Junior</option>
+                        <option value="@((int)NivelServico.Pleno)">Pleno</option>
+                        <option value="@((int)NivelServico.Senior)">Sênior</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Lista de Serviços -->
+            <div class="row">
+                @if (servicosFiltrados == null)
+                {
+                    <div class="col-12 text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                }
+                else if (!servicosFiltrados.Any())
+                {
+                    <div class="col-12">
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Nenhum serviço disponível encontrado com os filtros aplicados.
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var servico in servicosFiltrados)
+                    {
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">@servico.Nome</h6>
+                                    <span class="badge @GetStatusBadgeClass(servico.Status)">
+                                        @GetStatusText(servico.Status)
+                                    </span>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text small">@servico.Descricao</p>
+                                    <div class="row g-2 small">
+                                        <div class="col-6">
+                                            <strong>Valor:</strong> R$ @servico.Valor.ToString("N2")
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Nível:</strong> @GetNivelText(servico.Nivel)
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Vagas:</strong> @servico.QuantidadeVagas
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Disponíveis:</strong> @(servico.QuantidadeVagas - servico.FreelancerServicos.Count(fs => fs.Status == StatusParticipacao.Aceito))
+                                        </div>
+                                        <div class="col-12">
+                                            <strong>Categoria:</strong> @servico.Categoria.Nome
+                                        </div>
+                                        <div class="col-12">
+                                            <strong>Cliente:</strong> @servico.Cliente.Nome
+                                        </div>
+                                        <div class="col-12">
+                                            <strong>Início:</strong> @servico.DataInicio.ToString("dd/MM/yyyy")
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    @{
+                                        var minhaParticipacao = servico.FreelancerServicos.FirstOrDefault(fs => fs.FreelancerId == currentUser?.Id);
+                                        var vagasDisponiveis = servico.QuantidadeVagas - servico.FreelancerServicos.Count(fs => fs.Status == StatusParticipacao.Aceito);
+                                    }
+                                    
+                                    @if (minhaParticipacao == null)
+                                    {
+                                        @if (vagasDisponiveis > 0 && servico.Status == StatusServico.AguardandoCompletarTime)
+                                        {
+                                            <button class="btn btn-primary w-100" @onclick="() => SolicitarParticipacao(servico.Id)">
+                                                <i class="fas fa-hand-paper me-1"></i>
+                                                Candidatar-se
+                                            </button>
+                                        }
+                                        else if (vagasDisponiveis <= 0)
+                                        {
+                                            <button class="btn btn-secondary w-100" disabled>
+                                                <i class="fas fa-users me-1"></i>
+                                                Vagas Preenchidas
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-secondary w-100" disabled>
+                                                <i class="fas fa-lock me-1"></i>
+                                                Não Disponível
+                                            </button>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center">
+                                            <span class="badge @GetStatusParticipacaoBadgeClass(minhaParticipacao.Status) fs-6">
+                                                <i class="fas @GetStatusParticipacaoIcon(minhaParticipacao.Status) me-1"></i>
+                                                @GetStatusParticipacaoText(minhaParticipacao.Status)
+                                            </span>
+                                            @if (minhaParticipacao.Status == StatusParticipacao.EmEspera)
+                                            {
+                                                <div class="mt-2">
+                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => CancelarParticipacao(minhaParticipacao.Id)">
+                                                        <i class="fas fa-times me-1"></i>
+                                                        Cancelar
+                                                    </button>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(mensagem))
+{
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
+        <div class="toast show" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">Notificação</strong>
+                <button type="button" class="btn-close" @onclick="() => mensagem = string.Empty"></button>
+            </div>
+            <div class="toast-body">
+                @mensagem
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Servico>? servicos;
+    private List<Servico>? servicosFiltrados;
+    private List<Categoria>? categorias;
+    private ApplicationUser? currentUser;
+    
+    private string filtroCategoria = "";
+    private string filtroNivel = "";
+    private string mensagem = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarUsuarioAtual();
+        await CarregarCategorias();
+        await CarregarServicos();
+        FiltrarServicos();
+    }
+
+    private async Task CarregarUsuarioAtual()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            currentUser = await UserManager.GetUserAsync(authState.User);
+        }
+    }
+
+    private async Task CarregarCategorias()
+    {
+        categorias = await DbContext.Categorias
+            .OrderBy(c => c.Nome)
+            .ToListAsync();
+    }
+
+    private async Task CarregarServicos()
+    {
+        servicos = await DbContext.Servicos
+            .Include(s => s.Categoria)
+            .Include(s => s.Cliente)
+            .Include(s => s.FreelancerServicos)
+                .ThenInclude(fs => fs.Freelancer)
+            .Where(s => s.Status == StatusServico.AguardandoCompletarTime || s.Status == StatusServico.Ativo)
+            .OrderByDescending(s => s.DataCriacao)
+            .ToListAsync();
+    }
+
+    private void FiltrarServicos()
+    {
+        if (servicos == null)
+        {
+            servicosFiltrados = null;
+            return;
+        }
+
+        var query = servicos.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(filtroCategoria) && int.TryParse(filtroCategoria, out int categoriaId))
+        {
+            query = query.Where(s => s.CategoriaId == categoriaId);
+        }
+
+        if (!string.IsNullOrEmpty(filtroNivel) && int.TryParse(filtroNivel, out int nivel))
+        {
+            query = query.Where(s => (int)s.Nivel == nivel);
+        }
+
+        servicosFiltrados = query.ToList();
+    }
+
+    private void OnCategoriaChanged(ChangeEventArgs e)
+    {
+        filtroCategoria = e.Value?.ToString() ?? "";
+        FiltrarServicos();
+    }
+
+    private void OnNivelChanged(ChangeEventArgs e)
+    {
+        filtroNivel = e.Value?.ToString() ?? "";
+        FiltrarServicos();
+    }
+
+    private async Task SolicitarParticipacao(int servicoId)
+    {
+        if (currentUser == null)
+        {
+            mensagem = "Usuário não autenticado.";
+            return;
+        }
+
+        try
+        {
+            // Verificar se já existe uma solicitação
+            var jaParticipa = await DbContext.FreelancerServicos
+                .AnyAsync(fs => fs.ServicoId == servicoId && fs.FreelancerId == currentUser.Id);
+
+            if (jaParticipa)
+            {
+                mensagem = "Você já se candidatou para este serviço.";
+                return;
+            }
+
+            var novaParticipacao = new FreelancerServico
+            {
+                FreelancerId = currentUser.Id,
+                ServicoId = servicoId,
+                Status = StatusParticipacao.EmEspera,
+                DataSolicitacao = DateTime.UtcNow
+            };
+
+            DbContext.FreelancerServicos.Add(novaParticipacao);
+            await DbContext.SaveChangesAsync();
+
+            await CarregarServicos();
+            FiltrarServicos();
+
+            mensagem = "Candidatura enviada com sucesso!";
+            Logger.LogInformation("Freelancer {FreelancerId} se candidatou ao serviço {ServicoId}", currentUser.Id, servicoId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao solicitar participação no serviço {ServicoId}", servicoId);
+            mensagem = "Erro ao enviar candidatura. Tente novamente.";
+        }
+    }
+
+    private async Task CancelarParticipacao(int freelancerServicoId)
+    {
+        try
+        {
+            var participacao = await DbContext.FreelancerServicos
+                .FirstOrDefaultAsync(fs => fs.Id == freelancerServicoId);
+
+            if (participacao != null)
+            {
+                DbContext.FreelancerServicos.Remove(participacao);
+                await DbContext.SaveChangesAsync();
+
+                await CarregarServicos();
+                FiltrarServicos();
+
+                mensagem = "Candidatura cancelada com sucesso.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao cancelar participação {FreelancerServicoId}", freelancerServicoId);
+            mensagem = "Erro ao cancelar candidatura.";
+        }
+    }
+
+    // Métodos auxiliares para exibição
+    private string GetStatusBadgeClass(StatusServico status) => status switch
+    {
+        StatusServico.Ativo => "bg-success",
+        StatusServico.EmAndamento => "bg-warning",
+        StatusServico.Finalizado => "bg-primary",
+        StatusServico.Cancelado => "bg-danger",
+        StatusServico.AguardandoCompletarTime => "bg-secondary",
+        _ => "bg-secondary"
+    };
+
+    private string GetStatusText(StatusServico status) => status switch
+    {
+        StatusServico.Ativo => "Ativo",
+        StatusServico.EmAndamento => "Em Andamento",
+        StatusServico.Finalizado => "Finalizado",
+        StatusServico.Cancelado => "Cancelado",
+        StatusServico.AguardandoCompletarTime => "Aguardando Time",
+        _ => "Desconhecido"
+    };
+
+    private string GetNivelText(NivelServico nivel) => nivel switch
+    {
+        NivelServico.Junior => "Junior",
+        NivelServico.Pleno => "Pleno",
+        NivelServico.Senior => "Sênior",
+        _ => "Não definido"
+    };
+
+    private string GetStatusParticipacaoBadgeClass(StatusParticipacao status) => status switch
+    {
+        StatusParticipacao.EmEspera => "bg-warning",
+        StatusParticipacao.Aceito => "bg-success",
+        StatusParticipacao.Recusado => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    private string GetStatusParticipacaoText(StatusParticipacao status) => status switch
+    {
+        StatusParticipacao.EmEspera => "Em Análise",
+        StatusParticipacao.Aceito => "Aprovado",
+        StatusParticipacao.Recusado => "Recusado",
+        _ => "Desconhecido"
+    };
+
+    private string GetStatusParticipacaoIcon(StatusParticipacao status) => status switch
+    {
+        StatusParticipacao.EmEspera => "fa-clock",
+        StatusParticipacao.Aceito => "fa-check",
+        StatusParticipacao.Recusado => "fa-times",
+        _ => "fa-question"
+    };
+}

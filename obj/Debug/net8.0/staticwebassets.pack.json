@@ -1,0 +1,41 @@
+{
+  "Files": [
+    {
+      "Id": "/home/wester-dev/RiderProjects/GestaoFreela/obj/Debug/net8.0/scopedcss/projectbundle/GestaoFreela.bundle.scp.css",
+      "PackagePath": "staticwebassets/GestaoFreela.bundle.scp.css"
+    },
+    {
+      "Id": "/home/wester-dev/RiderProjects/GestaoFreela/wwwroot/app.css",
+      "PackagePath": "staticwebassets/app.css"
+    },
+    {
+      "Id": "/home/wester-dev/RiderProjects/GestaoFreela/wwwroot/bootstrap/bootstrap.min.css",
+      "PackagePath": "staticwebassets/bootstrap/bootstrap.min.css"
+    },
+    {
+      "Id": "/home/wester-dev/RiderProjects/GestaoFreela/wwwroot/bootstrap/bootstrap.min.css.map",
+      "PackagePath": "staticwebassets/bootstrap/bootstrap.min.css.map"
+    },
+    {
+      "Id": "/home/wester-dev/RiderProjects/GestaoFreela/wwwroot/favicon.png",
+      "PackagePath": "staticwebassets/favicon.png"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.GestaoFreela.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.build.GestaoFreela.props",
+      "PackagePath": "build\\GestaoFreela.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.buildMultiTargeting.GestaoFreela.props",
+      "PackagePath": "buildMultiTargeting\\GestaoFreela.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.buildTransitive.GestaoFreela.props",
+      "PackagePath": "buildTransitive\\GestaoFreela.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

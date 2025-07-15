@@ -1,0 +1,839 @@
+@page "/cliente/servicos"
+@rendermode InteractiveServer
+
+@attribute [Authorize(Roles = "cliente")]
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using global::GestaoFreela.Data
+@using global::GestaoFreela.Models
+@using global::GestaoFreela.Models.Enums
+@using global::GestaoFreela.Services
+@using Microsoft.AspNetCore.Identity
+
+@inject ApplicationDbContext DbContext
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IServicoStatusService ServicoStatusService
+@inject ILogger<ServicosCliente> Logger
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-briefcase text-primary me-2"></i>
+                    Meus Serviços
+                </h2>
+                <button class="btn btn-primary" @onclick="AbrirModalCadastro">
+                    <i class="fas fa-plus me-2"></i>
+                    Novo Serviço
+                </button>
+            </div>
+
+            <!-- Lista de Serviços -->
+            <div class="row">
+                @if (servicos == null)
+                {
+                    <div class="col-12 text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                }
+                else if (!servicos.Any())
+                {
+                    <div class="col-12">
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Você ainda não cadastrou nenhum serviço.
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var servico in servicos)
+                    {
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">@servico.Nome</h6>
+                                    <span class="badge @GetStatusBadgeClass(servico.Status)">
+                                        @GetStatusText(servico.Status)
+                                    </span>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text small">@servico.Descricao</p>
+                                    <div class="row g-2 small">
+                                        <div class="col-6">
+                                            <strong>Valor:</strong> R$ @servico.Valor.ToString("N2")
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Nível:</strong> @GetNivelText(servico.Nivel)
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Vagas:</strong> @servico.QuantidadeVagas
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Preenchidas:</strong> @servico.FreelancerServicos.Count(fs => fs.Status == StatusParticipacao.Aceito)
+                                        </div>
+                                        <div class="col-12">
+                                            <strong>Categoria:</strong> @servico.Categoria.Nome
+                                        </div>
+                                        <div class="col-12">
+                                            <strong>Início:</strong> @servico.DataInicio.ToString("dd/MM/yyyy")
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-primary flex-fill" @onclick="() => VerDetalhes(servico)">
+                                            <i class="fas fa-eye me-1"></i>
+                                            Detalhes
+                                        </button>
+                                        @if (servico.FreelancerServicos.Any(fs => fs.Status == StatusParticipacao.EmEspera))
+                                        {
+                                            <button class="btn btn-sm btn-warning" @onclick="() => GerenciarFreelancers(servico)">
+                                                <i class="fas fa-users me-1"></i>
+                                                Pendências
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Cadastro de Serviço -->
+@if (mostrarModalCadastro)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Novo Serviço</h5>
+                    <button type="button" class="btn-close" @onclick="FecharModalCadastro"></button>
+                </div>
+                <form @onsubmit="SalvarServico" @onsubmit:preventDefault="true">
+                    <div class="modal-body">
+                        @if (!string.IsNullOrEmpty(mensagemErro))
+                        {
+                            <div class="alert alert-danger">@mensagemErro</div>
+                        }
+                        
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">Nome do Serviço</label>
+                                <input @bind="InputServico.Nome" class="form-control" placeholder="Digite o nome do serviço" required />
+                            </div>
+                            
+                            <div class="col-12">
+                                <label class="form-label">Descrição</label>
+                                <textarea @bind="InputServico.Descricao" class="form-control" rows="4" placeholder="Descreva detalhadamente o serviço" required></textarea>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">Categoria</label>
+                                <select @bind="InputServico.CategoriaId" class="form-select" required>
+                                    <option value="">Selecione uma categoria</option>
+                                    @if (categorias != null)
+                                    {
+                                        @foreach (var categoria in categorias)
+                                        {
+                                            <option value="@categoria.Id">@categoria.Nome</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">Valor (R$)</label>
+                                <input @bind="InputServico.Valor" type="number" step="0.01" min="0" class="form-control" placeholder="0,00" required />
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">Nível</label>
+                                <select @bind="InputServico.Nivel" class="form-select" required>
+                                    <option value="">Selecione o nível</option>
+                                    <option value="@((int)NivelServico.Junior)">Junior</option>
+                                    <option value="@((int)NivelServico.Pleno)">Pleno</option>
+                                    <option value="@((int)NivelServico.Senior)">Sênior</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">Quantidade de Vagas</label>
+                                <input @bind="InputServico.QuantidadeVagas" type="number" min="1" class="form-control" placeholder="1" required />
+                            </div>
+                            
+                            <div class="col-12">
+                                <label class="form-label">Data de Início</label>
+                                <input @bind="InputServico.DataInicio" type="date" class="form-control" required />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="FecharModalCadastro">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Cadastrar Serviço</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- Modal para Gerenciar Freelancers -->
+@if (mostrarModalFreelancers && servicoSelecionado != null)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Gerenciar Freelancers - @servicoSelecionado.Nome</h5>
+                    <button type="button" class="btn-close" @onclick="FecharModalFreelancers"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <div class="alert alert-info">
+                                <strong>Vagas:</strong> @servicoSelecionado.QuantidadeVagas | 
+                                <strong>Preenchidas:</strong> @servicoSelecionado.FreelancerServicos.Count(fs => fs.Status == StatusParticipacao.Aceito) |
+                                <strong>Disponíveis:</strong> @(servicoSelecionado.QuantidadeVagas - servicoSelecionado.FreelancerServicos.Count(fs => fs.Status == StatusParticipacao.Aceito))
+                            </div>
+                        </div>
+                    </div>
+                    
+                    @if (servicoSelecionado.FreelancerServicos.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Freelancer</th>
+                                        <th>E-mail</th>
+                                        <th>Telefone</th>
+                                        <th>Data Solicitação</th>
+                                        <th>Status</th>
+                                        <th class="text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var fs in servicoSelecionado.FreelancerServicos.OrderBy(f => f.DataSolicitacao))
+                                    {
+                                        <tr>
+                                            <td>@fs.Freelancer.Nome</td>
+                                            <td>@fs.Freelancer.Email</td>
+                                            <td>@fs.Freelancer.Telefone</td>
+                                            <td>@fs.DataSolicitacao.ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td>
+                                                <span class="badge @GetStatusParticipacaoBadgeClass(fs.Status)">
+                                                    @GetStatusParticipacaoText(fs.Status)
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                @if (fs.Status == StatusParticipacao.EmEspera)
+                                                {
+                                                    <div class="btn-group" role="group">
+                                                        @if (CanAceitarFreelancer())
+                                                        {
+                                                            <button class="btn btn-sm btn-success" @onclick="() => AceitarFreelancer(fs.Id)">
+                                                                <i class="fas fa-check"></i>
+                                                            </button>
+                                                        }
+                                                        <button class="btn btn-sm btn-danger" @onclick="() => RecusarFreelancer(fs.Id)">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </div>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Nenhum freelancer se candidatou ainda.
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="FecharModalFreelancers">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- Modal para Detalhes/Edição de Serviço -->
+@if (mostrarModalDetalhes && servicoSelecionado != null)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Detalhes do Serviço - @servicoSelecionado.Nome</h5>
+                    <button type="button" class="btn-close" @onclick="FecharModalDetalhes"></button>
+                </div>
+                <form @onsubmit="AtualizarServico" @onsubmit:preventDefault="true">
+                    <div class="modal-body">
+                        @if (!string.IsNullOrEmpty(mensagemErro))
+                        {
+                            <div class="alert alert-danger">@mensagemErro</div>
+                        }
+                        
+                        <!-- Informações do Status -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <strong>Status:</strong> 
+                                            <span class="badge @GetStatusBadgeClass(servicoSelecionado.Status)">
+                                                @GetStatusText(servicoSelecionado.Status)
+                                            </span>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <strong>Vagas:</strong> @servicoSelecionado.QuantidadeVagas
+                                        </div>
+                                        <div class="col-md-3">
+                                            <strong>Preenchidas:</strong> @servicoSelecionado.FreelancerServicos.Count(fs => fs.Status == StatusParticipacao.Aceito)
+                                        </div>
+                                        <div class="col-md-3">
+                                            <strong>Criado em:</strong> @servicoSelecionado.DataCriacao.ToString("dd/MM/yyyy")
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Campos Editáveis -->
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">Nome do Serviço</label>
+                                <input @bind="InputServico.Nome" class="form-control" placeholder="Digite o nome do serviço" required />
+                            </div>
+                            
+                            <div class="col-12">
+                                <label class="form-label">Descrição</label>
+                                <textarea @bind="InputServico.Descricao" class="form-control" rows="4" placeholder="Descreva detalhadamente o serviço" required></textarea>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">Categoria</label>
+                                <select @bind="InputServico.CategoriaId" class="form-select" required>
+                                    <option value="">Selecione uma categoria</option>
+                                    @if (categorias != null)
+                                    {
+                                        @foreach (var categoria in categorias)
+                                        {
+                                            <option value="@categoria.Id">@categoria.Nome</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">Valor (R$)</label>
+                                <input @bind="InputServico.Valor" type="number" step="0.01" min="0" class="form-control" placeholder="0,00" required />
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">Nível</label>
+                                <select @bind="InputServico.Nivel" class="form-select" required>
+                                    <option value="">Selecione o nível</option>
+                                    <option value="@((int)NivelServico.Junior)">Junior</option>
+                                    <option value="@((int)NivelServico.Pleno)">Pleno</option>
+                                    <option value="@((int)NivelServico.Senior)">Sênior</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">Quantidade de Vagas</label>
+                                <input @bind="InputServico.QuantidadeVagas" type="number" min="1" class="form-control" placeholder="1" required />
+                            </div>
+                            
+                            <div class="col-12">
+                                <label class="form-label">Data de Início</label>
+                                <input @bind="InputServico.DataInicio" type="date" class="form-control" required />
+                            </div>
+                        </div>
+                        
+                        <!-- Ações de Status (se aplicável) -->
+                        @if (servicoSelecionado.Status == StatusServico.AguardandoCompletarTime || servicoSelecionado.Status == StatusServico.Ativo || servicoSelecionado.Status == StatusServico.EmAndamento)
+                        {
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <div class="alert alert-warning">
+                                        <h6>Ações do Serviço:</h6>
+                                        <div class="d-flex gap-2 flex-wrap">
+                                            @if (servicoSelecionado.Status != StatusServico.Cancelado)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-danger" @onclick="CancelarServico">
+                                                    <i class="fas fa-ban me-1"></i>
+                                                    Cancelar Serviço
+                                                </button>
+                                            }
+                                            @if (servicoSelecionado.Status == StatusServico.Ativo)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-success" @onclick="IniciarServico">
+                                                    <i class="fas fa-play me-1"></i>
+                                                    Iniciar Andamento
+                                                </button>
+                                            }
+                                            @if (servicoSelecionado.Status == StatusServico.EmAndamento)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-primary" @onclick="FinalizarServico">
+                                                    <i class="fas fa-check-circle me-1"></i>
+                                                    Finalizar Serviço
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="FecharModalDetalhes">Fechar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>
+                            Salvar Alterações
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private List<Servico>? servicos;
+    private List<Categoria>? categorias;
+    private Servico? servicoSelecionado;
+    private ApplicationUser? currentUser;
+    
+    private bool mostrarModalCadastro = false;
+    private bool mostrarModalFreelancers = false;
+    private bool mostrarModalDetalhes = false;
+    private string mensagemErro = "";
+
+    private InputServicoModel InputServico { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarUsuarioAtual();
+        await CarregarCategorias();
+        await CarregarServicos();
+    }
+
+    private async Task CarregarUsuarioAtual()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            currentUser = await UserManager.GetUserAsync(authState.User);
+        }
+    }
+
+    private async Task CarregarCategorias()
+    {
+        categorias = await DbContext.Categorias
+            .OrderBy(c => c.Nome)
+            .ToListAsync();
+    }
+
+    private async Task CarregarServicos()
+    {
+        if (currentUser == null) return;
+
+        servicos = await DbContext.Servicos
+            .Include(s => s.Categoria)
+            .Include(s => s.FreelancerServicos)
+                .ThenInclude(fs => fs.Freelancer)
+            .Where(s => s.ClienteId == currentUser.Id)
+            .OrderByDescending(s => s.DataCriacao)
+            .ToListAsync();
+    }
+
+    private void AbrirModalCadastro()
+    {
+        InputServico = new InputServicoModel { DataInicio = DateTime.Today.AddDays(1) };
+        mensagemErro = "";
+        mostrarModalCadastro = true;
+    }
+
+    private void FecharModalCadastro()
+    {
+        mostrarModalCadastro = false;
+        InputServico = new InputServicoModel();
+        mensagemErro = "";
+    }
+
+    private async Task SalvarServico()
+    {
+        mensagemErro = "";
+
+        if (currentUser == null)
+        {
+            mensagemErro = "Usuário não autenticado.";
+            return;
+        }
+
+        // Validações
+        if (string.IsNullOrWhiteSpace(InputServico.Nome))
+        {
+            mensagemErro = "O nome do serviço é obrigatório.";
+            return;
+        }
+
+        if (InputServico.CategoriaId <= 0)
+        {
+            mensagemErro = "Selecione uma categoria.";
+            return;
+        }
+
+        if (InputServico.DataInicio <= DateTime.Today)
+        {
+            mensagemErro = "A data de início deve ser futura.";
+            return;
+        }
+
+        try
+        {
+            var novoServico = new Servico
+            {
+                Nome = InputServico.Nome,
+                Descricao = InputServico.Descricao,
+                CategoriaId = InputServico.CategoriaId,
+                Valor = InputServico.Valor,
+                Nivel = (NivelServico)InputServico.Nivel,
+                QuantidadeVagas = InputServico.QuantidadeVagas,
+                DataInicio = InputServico.DataInicio,
+                ClienteId = currentUser.Id,
+                Status = StatusServico.AguardandoCompletarTime
+            };
+
+            DbContext.Servicos.Add(novoServico);
+            await DbContext.SaveChangesAsync();
+            
+            await CarregarServicos();
+            FecharModalCadastro();
+
+            Logger.LogInformation("Serviço {Nome} criado pelo cliente {ClienteId}", InputServico.Nome, currentUser.Id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao salvar serviço");
+            mensagemErro = "Erro ao salvar serviço. Tente novamente.";
+        }
+    }
+
+    private void VerDetalhes(Servico servico)
+    {
+        servicoSelecionado = servico;
+        InputServico = new InputServicoModel
+        {
+            Nome = servico.Nome,
+            Descricao = servico.Descricao,
+            CategoriaId = servico.CategoriaId,
+            Valor = servico.Valor,
+            Nivel = (int)servico.Nivel,
+            QuantidadeVagas = servico.QuantidadeVagas,
+            DataInicio = servico.DataInicio
+        };
+        mostrarModalDetalhes = true;
+    }
+
+    private void GerenciarFreelancers(Servico servico)
+    {
+        servicoSelecionado = servico;
+        mostrarModalFreelancers = true;
+    }
+
+    private void FecharModalFreelancers()
+    {
+        mostrarModalFreelancers = false;
+        servicoSelecionado = null;
+    }
+
+    private void FecharModalDetalhes()
+    {
+        mostrarModalDetalhes = false;
+        servicoSelecionado = null;
+        mensagemErro = "";
+    }
+
+    private async Task AtualizarServico()
+    {
+        mensagemErro = "";
+
+        if (servicoSelecionado == null)
+        {
+            mensagemErro = "Serviço não encontrado.";
+            return;
+        }
+
+        // Validações
+        if (string.IsNullOrWhiteSpace(InputServico.Nome))
+        {
+            mensagemErro = "O nome do serviço é obrigatório.";
+            return;
+        }
+
+        if (InputServico.CategoriaId <= 0)
+        {
+            mensagemErro = "Selecione uma categoria.";
+            return;
+        }
+
+        try
+        {
+            // Buscar o serviço atual no banco usando o ID capturado antes da operação
+            var servicoId = servicoSelecionado.Id;
+            var servicoAtual = await DbContext.Servicos.FindAsync(servicoId);
+            if (servicoAtual != null)
+            {
+                servicoAtual.Nome = InputServico.Nome;
+                servicoAtual.Descricao = InputServico.Descricao;
+                servicoAtual.CategoriaId = InputServico.CategoriaId;
+                servicoAtual.Valor = InputServico.Valor;
+                servicoAtual.Nivel = (NivelServico)InputServico.Nivel;
+                servicoAtual.QuantidadeVagas = InputServico.QuantidadeVagas;
+                servicoAtual.DataInicio = InputServico.DataInicio;
+
+                await DbContext.SaveChangesAsync();
+                await CarregarServicos();
+                FecharModalDetalhes();
+
+                Logger.LogInformation("Serviço {ServicoId} atualizado pelo cliente {ClienteId}", servicoId, currentUser?.Id);
+            }
+            else
+            {
+                mensagemErro = "Serviço não encontrado no banco de dados.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao atualizar serviço {ServicoId}", servicoSelecionado?.Id);
+            mensagemErro = "Erro ao atualizar serviço. Tente novamente.";
+        }
+    }
+
+    private async Task CancelarServico()
+    {
+        if (servicoSelecionado == null) return;
+
+        try
+        {
+            var servicoAtual = await DbContext.Servicos.FindAsync(servicoSelecionado.Id);
+            if (servicoAtual != null)
+            {
+                servicoAtual.Status = StatusServico.Cancelado;
+                await DbContext.SaveChangesAsync();
+                await CarregarServicos();
+                FecharModalDetalhes();
+
+                Logger.LogInformation("Serviço {ServicoId} cancelado pelo cliente {ClienteId}", servicoSelecionado.Id, currentUser?.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao cancelar serviço {ServicoId}", servicoSelecionado?.Id);
+            mensagemErro = "Erro ao cancelar serviço.";
+        }
+    }
+
+    private async Task IniciarServico()
+    {
+        if (servicoSelecionado == null) return;
+
+        try
+        {
+            var servicoAtual = await DbContext.Servicos.FindAsync(servicoSelecionado.Id);
+            if (servicoAtual != null)
+            {
+                servicoAtual.Status = StatusServico.EmAndamento;
+                await DbContext.SaveChangesAsync();
+                await CarregarServicos();
+                FecharModalDetalhes();
+
+                Logger.LogInformation("Serviço {ServicoId} iniciado pelo cliente {ClienteId}", servicoSelecionado.Id, currentUser?.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao iniciar serviço {ServicoId}", servicoSelecionado?.Id);
+            mensagemErro = "Erro ao iniciar serviço.";
+        }
+    }
+
+    private async Task FinalizarServico()
+    {
+        if (servicoSelecionado == null) return;
+
+        try
+        {
+            var servicoAtual = await DbContext.Servicos.FindAsync(servicoSelecionado.Id);
+            if (servicoAtual != null)
+            {
+                servicoAtual.Status = StatusServico.Finalizado;
+                servicoAtual.DataFinalizacao = DateTime.UtcNow;
+                await DbContext.SaveChangesAsync();
+                await CarregarServicos();
+                FecharModalDetalhes();
+
+                Logger.LogInformation("Serviço {ServicoId} finalizado pelo cliente {ClienteId}", servicoSelecionado.Id, currentUser?.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao finalizar serviço {ServicoId}", servicoSelecionado?.Id);
+            mensagemErro = "Erro ao finalizar serviço.";
+        }
+    }
+
+    private async Task AceitarFreelancer(int freelancerServicoId)
+    {
+        try
+        {
+            var freelancerServico = await DbContext.FreelancerServicos
+                .FirstOrDefaultAsync(fs => fs.Id == freelancerServicoId);
+
+            if (freelancerServico != null && servicoSelecionado != null)
+            {
+                // Verificar se ainda há vagas disponíveis
+                var podeAceitar = await ServicoStatusService.PodeAceitarFreelancerAsync(servicoSelecionado.Id);
+                
+                if (!podeAceitar)
+                {
+                    mensagemErro = "Todas as vagas já foram preenchidas.";
+                    return;
+                }
+
+                freelancerServico.Status = StatusParticipacao.Aceito;
+                freelancerServico.DataResposta = DateTime.UtcNow;
+                
+                await DbContext.SaveChangesAsync();
+                await ServicoStatusService.AtualizarStatusServicoAsync(servicoSelecionado.Id);
+                await CarregarServicos();
+
+                // Atualizar o serviço selecionado
+                if (servicoSelecionado != null)
+                {
+                    servicoSelecionado = servicos?.FirstOrDefault(s => s.Id == servicoSelecionado.Id);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao aceitar freelancer");
+            mensagemErro = "Erro ao aceitar freelancer.";
+        }
+    }
+
+    private async Task RecusarFreelancer(int freelancerServicoId)
+    {
+        try
+        {
+            var freelancerServico = await DbContext.FreelancerServicos
+                .FirstOrDefaultAsync(fs => fs.Id == freelancerServicoId);
+
+            if (freelancerServico != null)
+            {
+                freelancerServico.Status = StatusParticipacao.Recusado;
+                freelancerServico.DataResposta = DateTime.UtcNow;
+                
+                await DbContext.SaveChangesAsync();
+                await CarregarServicos();
+
+                // Atualizar o serviço selecionado
+                if (servicoSelecionado != null)
+                {
+                    servicoSelecionado = servicos?.FirstOrDefault(s => s.Id == servicoSelecionado.Id);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Erro ao recusar freelancer");
+            mensagemErro = "Erro ao recusar freelancer.";
+        }
+    }
+
+    private bool CanAceitarFreelancer()
+    {
+        if (servicoSelecionado == null) return false;
+        
+        var vagasOcupadas = servicoSelecionado.FreelancerServicos.Count(fs => fs.Status == StatusParticipacao.Aceito);
+        return vagasOcupadas < servicoSelecionado.QuantidadeVagas;
+    }
+
+    // Métodos auxiliares para exibição
+    private string GetStatusBadgeClass(StatusServico status) => status switch
+    {
+        StatusServico.Ativo => "bg-success",
+        StatusServico.EmAndamento => "bg-warning",
+        StatusServico.Finalizado => "bg-primary",
+        StatusServico.Cancelado => "bg-danger",
+        StatusServico.AguardandoCompletarTime => "bg-secondary",
+        _ => "bg-secondary"
+    };
+
+    private string GetStatusText(StatusServico status) => status switch
+    {
+        StatusServico.Ativo => "Ativo",
+        StatusServico.EmAndamento => "Em Andamento",
+        StatusServico.Finalizado => "Finalizado",
+        StatusServico.Cancelado => "Cancelado",
+        StatusServico.AguardandoCompletarTime => "Aguardando Time",
+        _ => "Desconhecido"
+    };
+
+    private string GetNivelText(NivelServico nivel) => nivel switch
+    {
+        NivelServico.Junior => "Junior",
+        NivelServico.Pleno => "Pleno",
+        NivelServico.Senior => "Sênior",
+        _ => "Não definido"
+    };
+
+    private string GetStatusParticipacaoBadgeClass(StatusParticipacao status) => status switch
+    {
+        StatusParticipacao.EmEspera => "bg-warning",
+        StatusParticipacao.Aceito => "bg-success",
+        StatusParticipacao.Recusado => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    private string GetStatusParticipacaoText(StatusParticipacao status) => status switch
+    {
+        StatusParticipacao.EmEspera => "Em Espera",
+        StatusParticipacao.Aceito => "Aceito",
+        StatusParticipacao.Recusado => "Recusado",
+        _ => "Desconhecido"
+    };
+
+    private sealed class InputServicoModel
+    {
+        public string Nome { get; set; } = "";
+        public string Descricao { get; set; } = "";
+        public int CategoriaId { get; set; }
+        public decimal Valor { get; set; }
+        public int Nivel { get; set; }
+        public int QuantidadeVagas { get; set; } = 1;
+        public DateTime DataInicio { get; set; } = DateTime.Today.AddDays(1);
+    }
+}

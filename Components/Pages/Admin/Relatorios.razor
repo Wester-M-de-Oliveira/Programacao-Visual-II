@@ -1,0 +1,161 @@
+@page "/admin/relatorios"
+@rendermode InteractiveServer
+
+@attribute [Authorize(Roles = "admin")]
+@using Microsoft.EntityFrameworkCore
+@using global::GestaoFreela.Data
+@using global::GestaoFreela.Models
+@using global::GestaoFreela.Models.Enums
+@inject ApplicationDbContext DbContext
+
+<h2 class="mb-4"><i class="fas fa-chart-bar text-primary me-2"></i> Relatórios do Sistema</h2>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-clipboard-list me-2"></i> Serviços Finalizados por Período
+            </div>
+            <div class="card-body">
+                <div class="mb-3 row g-2 align-items-end">
+                    <div class="col">
+                        <label class="form-label">Data Inicial</label>
+                        <input type="date" class="form-control" @bind="dataInicioServicos" />
+                    </div>
+                    <div class="col">
+                        <label class="form-label">Data Final</label>
+                        <input type="date" class="form-control" @bind="dataFimServicos" />
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-primary" @onclick="BuscarServicosFinalizados">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                @if (servicosFinalizados != null)
+                {
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nome</th>
+                                <th>Cliente</th>
+                                <th>Valor (R$)</th>
+                                <th>Finalizado em</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in servicosFinalizados)
+                            {
+                                <tr>
+                                    <td>@s.Nome</td>
+                                    <td>@s.Cliente?.Nome</td>
+                                    <td>@s.Valor.ToString("N2")</td>
+                                    <td>@s.DataFinalizacao?.ToString("dd/MM/yyyy")</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-secondary">
+                                <td colspan="2"><strong>Total</strong></td>
+                                <td colspan="2"><strong>R$ @servicosFinalizados.Sum(x => x.Valor).ToString("N2")</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-users me-2"></i> Freelancers com Mais Serviços no Período
+            </div>
+            <div class="card-body">
+                <div class="mb-3 row g-2 align-items-end">
+                    <div class="col">
+                        <label class="form-label">Data Inicial</label>
+                        <input type="date" class="form-control" @bind="dataInicioFreelancers" />
+                    </div>
+                    <div class="col">
+                        <label class="form-label">Data Final</label>
+                        <input type="date" class="form-control" @bind="dataFimFreelancers" />
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-success" @onclick="BuscarRankingFreelancers">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                @if (rankingFreelancers != null)
+                {
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Freelancer</th>
+                                <th>Email</th>
+                                <th>Qtd. Serviços</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var f in rankingFreelancers)
+                            {
+                                <tr>
+                                    <td>@f.Freelancer.Nome</td>
+                                    <td>@f.Freelancer.Email</td>
+                                    <td>@f.Quantidade</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Serviços finalizados
+    private DateTime? dataInicioServicos;
+    private DateTime? dataFimServicos;
+    private List<Servico>? servicosFinalizados;
+
+    // Ranking freelancers
+    private DateTime? dataInicioFreelancers;
+    private DateTime? dataFimFreelancers;
+    private List<FreelancerRanking>? rankingFreelancers;
+
+    private async Task BuscarServicosFinalizados()
+    {
+        var query = DbContext.Servicos
+            .Include(s => s.Cliente)
+            .Where(s => s.Status == StatusServico.Finalizado);
+        if (dataInicioServicos.HasValue)
+            query = query.Where(s => s.DataFinalizacao >= dataInicioServicos);
+        if (dataFimServicos.HasValue)
+            query = query.Where(s => s.DataFinalizacao <= dataFimServicos);
+        servicosFinalizados = await query.OrderByDescending(s => s.DataFinalizacao).ToListAsync();
+    }
+
+    private async Task BuscarRankingFreelancers()
+    {
+        var query = DbContext.FreelancerServicos
+            .Include(fs => fs.Freelancer)
+            .Include(fs => fs.Servico)
+            .Where(fs => fs.Status == StatusParticipacao.Aceito && fs.Servico.Status == StatusServico.Finalizado);
+        if (dataInicioFreelancers.HasValue)
+            query = query.Where(fs => fs.Servico.DataFinalizacao >= dataInicioFreelancers);
+        if (dataFimFreelancers.HasValue)
+            query = query.Where(fs => fs.Servico.DataFinalizacao <= dataFimFreelancers);
+        rankingFreelancers = await query
+            .GroupBy(fs => fs.Freelancer)
+            .Select(g => new FreelancerRanking { Freelancer = g.Key, Quantidade = g.Count() })
+            .OrderByDescending(x => x.Quantidade)
+            .ToListAsync();
+    }
+
+    private class FreelancerRanking
+    {
+        public ApplicationUser Freelancer { get; set; } = default!;
+        public int Quantidade { get; set; }
+    }
+}
