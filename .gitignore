@@ -1,0 +1,38 @@
+# .gitignore para projeto ASP.NET Core + Rider + VSCode
+
+# Build results
+bin/
+obj/
+
+# Rider
+.idea/
+*.sln.iml
+
+# VSCode
+.vscode/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Database
+*.db
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# EF Core Migrations (SQLite local db)
+Data/app.db
+
+# Backup files
+*~
+*.bak
+
+# Others
+wwwroot/bootstrap/*.map
